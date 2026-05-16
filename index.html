@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>全格式图片转换器</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:"Segoe UI",sans-serif;
+}
+
+body{
+    background:#0f172a;
+    color:white;
+    min-height:100vh;
+    padding:30px;
+    display:flex;
+    justify-content:center;
+}
+
+.app{
+    width:100%;
+    max-width:980px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:28px;
+    padding:30px;
+    backdrop-filter:blur(16px);
+    box-shadow:0 0 40px rgba(0,0,0,0.35);
+}
+
+h1{
+    text-align:center;
+    font-size:38px;
+    margin-bottom:12px;
+}
+
+.desc{
+    text-align:center;
+    color:#cbd5e1;
+    line-height:1.8;
+    margin-bottom:25px;
+}
+
+.drop{
+    border:2px dashed #60a5fa;
+    border-radius:24px;
+    padding:70px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:0.25s;
+    background:rgba(255,255,255,0.03);
+}
+
+.drop.drag{
+    background:rgba(96,165,250,0.12);
+    border-color:#93c5fd;
+}
+
+.drop h2{
+    font-size:30px;
+    margin-bottom:12px;
+}
+
+.drop p{
+    color:#cbd5e1;
+}
+
+.controls{
+    margin-top:28px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:14px;
+}
+
+select,
+button{
+    padding:15px;
+    border:none;
+    border-radius:16px;
+    font-size:16px;
+}
+
+select{
+    background:#1e293b;
+    color:white;
+}
+
+button{
+    background:#2563eb;
+    color:white;
+    cursor:pointer;
+    transition:0.25s;
+}
+
+button:hover{
+    transform:translateY(-2px);
+}
+
+.file-list{
+    margin-top:30px;
+    display:grid;
+    gap:14px;
+}
+
+.item{
+    background:rgba(255,255,255,0.05);
+    border-radius:18px;
+    padding:16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+.name{
+    word-break:break-all;
+}
+
+.status{
+    color:#93c5fd;
+}
+
+.tip{
+    margin-top:25px;
+    color:#94a3b8;
+    text-align:center;
+    line-height:1.8;
+}
+
+input{
+    display:none;
+}
+
+.badge{
+    display:inline-block;
+    padding:4px 10px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.08);
+    margin:4px;
+    font-size:13px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <h1>全格式图片转换器</h1>
+
+    <div class="desc">
+        拖入图片 → 自动转换 → 自动下载<br>
+        尽可能保留原图质量 / 分辨率 / 透明度
+    </div>
+
+    <div class="drop" id="drop">
+
+        <h2>拖入图片</h2>
+
+        <p>
+            支持 JPG PNG WEBP AVIF BMP GIF TIFF ICO SVG HEIC 等
+        </p>
+
+    </div>
+
+    <input type="file" id="fileInput" multiple accept="image/*">
+
+    <div class="controls">
+
+        <select id="format">
+
+            <option value="png">PNG 无损</option>
+            <option value="jpeg">JPG</option>
+            <option value="webp">WEBP</option>
+            <option value="avif">AVIF</option>
+            <option value="bmp">BMP</option>
+            <option value="gif">GIF</option>
+            <option value="ico">ICO</option>
+
+        </select>
+
+        <button id="chooseBtn">选择图片</button>
+
+    </div>
+
+    <div class="file-list" id="fileList"></div>
+
+    <div class="tip">
+
+        <div>
+            <span class="badge">PNG</span>
+            <span class="badge">JPG</span>
+            <span class="badge">WEBP</span>
+            <span class="badge">AVIF</span>
+            <span class="badge">BMP</span>
+            <span class="badge">GIF</span>
+            <span class="badge">ICO</span>
+            <span class="badge">TIFF*</span>
+            <span class="badge">HEIC*</span>
+            <span class="badge">SVG*</span>
+        </div>
+
+        <br>
+
+        * 浏览器原生不一定支持导出这些格式<br>
+        AVIF 需要 Chrome / Edge / 新版浏览器
+
+    </div>
+
+</div>
+
+<script>
+
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("fileInput");
+const chooseBtn = document.getElementById("chooseBtn");
+const formatSelect = document.getElementById("format");
+const fileList = document.getElementById("fileList");
+
+chooseBtn.onclick = () => fileInput.click();
+
+drop.onclick = () => fileInput.click();
+
+drop.addEventListener("dragover", e => {
+
+    e.preventDefault();
+    drop.classList.add("drag");
+
+});
+
+drop.addEventListener("dragleave", () => {
+
+    drop.classList.remove("drag");
+
+});
+
+drop.addEventListener("drop", e => {
+
+    e.preventDefault();
+
+    drop.classList.remove("drag");
+
+    handleFiles([...e.dataTransfer.files]);
+
+});
+
+fileInput.addEventListener("change", () => {
+
+    handleFiles([...fileInput.files]);
+
+});
+
+function handleFiles(files){
+
+    files.forEach(file => {
+
+        if(!file.type.startsWith("image/")) return;
+
+        const item = document.createElement("div");
+
+        item.className = "item";
+
+        item.innerHTML = `
+            <div class="name">${file.name}</div>
+            <div class="status">转换中...</div>
+        `;
+
+        fileList.prepend(item);
+
+        convertImage(file, item.querySelector(".status"));
+
+    });
+
+}
+
+function convertImage(file, status){
+
+    const reader = new FileReader();
+
+    reader.onload = e => {
+
+        const img = new Image();
+
+        img.onload = () => {
+
+            const canvas = document.createElement("canvas");
+
+            const ctx = canvas.getContext("2d");
+
+            canvas.width = img.width;
+            canvas.height = img.height;
+
+            ctx.drawImage(img,0,0);
+
+            const format = formatSelect.value;
+
+            let mime = "image/png";
+
+            switch(format){
+
+                case "jpeg":
+                    mime = "image/jpeg";
+                    break;
+
+                case "webp":
+                    mime = "image/webp";
+                    break;
+
+                case "avif":
+                    mime = "image/avif";
+                    break;
+
+                case "bmp":
+                    mime = "image/bmp";
+                    break;
+
+                case "gif":
+                    mime = "image/gif";
+                    break;
+
+                case "ico":
+                    mime = "image/x-icon";
+                    break;
+
+            }
+
+            canvas.toBlob(blob => {
+
+                if(!blob){
+
+                    status.innerText =
+                        "浏览器不支持该格式";
+
+                    return;
+
+                }
+
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement("a");
+
+                a.href = url;
+
+                a.download =
+                    file.name.replace(/\.[^/.]+$/, "") +
+                    "." +
+                    format;
+
+                document.body.appendChild(a);
+
+                a.click();
+
+                document.body.removeChild(a);
+
+                URL.revokeObjectURL(url);
+
+                status.innerText = "已下载";
+
+            }, mime, 1.0);
+
+        };
+
+        img.src = e.target.result;
+
+    };
+
+    reader.readAsDataURL(file);
+
+}
+
+</script>
+
+</body>
+</html>
